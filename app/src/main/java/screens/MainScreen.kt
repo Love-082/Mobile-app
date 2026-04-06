@@ -1,7 +1,7 @@
 package com.example.myapplication
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Icon
@@ -11,24 +11,41 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import data.BirthdayDao
 import screens.DashboardScreen
 import screens.ProjectFormScreen
 import screens.ProjectsScreen
 import screens.TaskFormScreen
 import screens.TasksScreen
+import viewmodel.BirthdayViewModel
 import viewmodel.ProjectViewModel
 import viewmodel.TaskViewModel
 
 @Composable
-fun MainScreen(viewModel: TaskViewModel) {
+fun MainScreen(taskViewModel: TaskViewModel, birthdayDao: BirthdayDao) {
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
-    val projectViewModel = ProjectViewModel()
-    var selectedProjectId by remember { mutableStateOf<Int?>(null) }
+    // Factory to handle the BirthdayDao dependency
+    val birthdayViewModel: BirthdayViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return BirthdayViewModel(birthdayDao) as T
+            }
+        }
+    )
+
+    val projectViewModel: ProjectViewModel = viewModel()
+
+    // Navigation states
     var currentProjectId by remember { mutableStateOf<Int?>(null) }
     var isAddingProject by remember { mutableStateOf(false) }
     var currentTaskId by remember { mutableStateOf<Int?>(null) }
@@ -40,13 +57,13 @@ fun MainScreen(viewModel: TaskViewModel) {
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("Home") }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.Folder, contentDescription = "Projects") },
+                    icon = { Icon(Icons.Default.DateRange, contentDescription = "Projects") },
                     label = { Text("Projects") }
                 )
                 NavigationBarItem(
@@ -59,77 +76,25 @@ fun MainScreen(viewModel: TaskViewModel) {
         }
     ) { innerPadding ->
         when (selectedTab) {
-            0 -> DashboardScreen(viewModel, innerPadding)
+            0 -> DashboardScreen(
+                viewModel = taskViewModel,
+                padding = innerPadding,
+                birthdayViewModel = birthdayViewModel
+            )
 
             1 -> {
                 when {
-                    isAddingProject -> {
-                        ProjectFormScreen(
-                            projectId = null,
-                            viewModel = projectViewModel,
-                            padding = innerPadding,
-                            onBack = {
-                                isAddingProject = false
-                            }
-                        )
-                    }
-
-                    currentProjectId != null -> {
-                        ProjectFormScreen(
-                            projectId = currentProjectId,
-                            viewModel = projectViewModel,
-                            padding = innerPadding,
-                            onBack = {
-                                currentProjectId = null
-                            }
-                        )
-                    }
-
-                    else -> {
-                        ProjectsScreen(
-                            viewModel = projectViewModel,
-                            padding = innerPadding,
-                            onAddClick = {
-                                isAddingProject = true
-                            },
-                            onProjectClick = { id ->
-                                currentProjectId = id
-                            }
-                        )
-                    }
+                    isAddingProject -> ProjectFormScreen(null, projectViewModel, innerPadding) { isAddingProject = false }
+                    currentProjectId != null -> ProjectFormScreen(currentProjectId, projectViewModel, innerPadding) { currentProjectId = null }
+                    else -> ProjectsScreen(projectViewModel, innerPadding, { isAddingProject = true }, { currentProjectId = it })
                 }
             }
 
-
-
             2 -> {
                 when {
-                    isAddingTask -> {
-                        TaskFormScreen(
-                            taskId = null,
-                            viewModel = viewModel,
-                            padding = innerPadding,
-                            onBack = { isAddingTask = false }
-                        )
-                    }
-
-                    currentTaskId != null -> {
-                        TaskFormScreen(
-                            taskId = currentTaskId,
-                            viewModel = viewModel,
-                            padding = innerPadding,
-                            onBack = { currentTaskId = null }
-                        )
-                    }
-
-                    else -> {
-                        TasksScreen(
-                            viewModel = viewModel,
-                            padding = innerPadding,
-                            onAddClick = { isAddingTask = true },
-                            onTaskClick = { id -> currentTaskId = id }
-                        )
-                    }
+                    isAddingTask -> TaskFormScreen(null, taskViewModel, innerPadding) { isAddingTask = false }
+                    currentTaskId != null -> TaskFormScreen(currentTaskId, taskViewModel, innerPadding) { currentTaskId = null }
+                    else -> TasksScreen(taskViewModel, innerPadding, { isAddingTask = true }, { currentTaskId = it })
                 }
             }
         }

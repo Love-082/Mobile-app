@@ -1,5 +1,6 @@
 package viewmodel
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import data.Birthday
@@ -8,11 +9,19 @@ import kotlinx.coroutines.launch
 
 class BirthdayViewModel(private val dao: BirthdayDao) : ViewModel() {
 
-    var birthdays = mutableListOf<Birthday>()
+    // Using mutableStateListOf so Compose detects changes automatically
+    private val _birthdays = mutableStateListOf<Birthday>()
+    val birthdays: List<Birthday> get() = _birthdays
+
+    init {
+        loadBirthdays()
+    }
 
     fun loadBirthdays() {
         viewModelScope.launch {
-            birthdays = dao.getAll().toMutableList()
+            val list = dao.getAll()
+            _birthdays.clear()
+            _birthdays.addAll(list)
         }
     }
 
