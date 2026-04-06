@@ -1,17 +1,23 @@
 package com.example.myapplication
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.Room
 import data.AppDatabase
 import viewmodel.TaskViewModel
 
 class MainActivity : ComponentActivity() {
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Initialize the Database
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "app-database"
@@ -19,17 +25,21 @@ class MainActivity : ComponentActivity() {
             .fallbackToDestructiveMigration()
             .build()
 
-        // 2. Get the DAO
         val birthdayDao = db.birthdayDao()
         val projectDao = db.projectDao()
+        val taskDao = db.taskDao()
 
         setContent {
-            // TaskViewModel usually doesn't need a DAO in your current setup,
-            // but if it does, apply the same Factory logic as BirthdayViewModel.
-            val taskViewModel = TaskViewModel()
 
+            val taskViewModel: TaskViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return TaskViewModel(taskDao) as T
+                    }
+                }
+            )
 
-            // 3. Pass everything to MainScreen
             MainScreen(
                 taskViewModel = taskViewModel,
                 birthdayDao = birthdayDao,

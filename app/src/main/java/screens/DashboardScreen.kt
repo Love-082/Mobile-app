@@ -206,15 +206,19 @@ fun DashboardScreen(viewModel: TaskViewModel, padding: PaddingValues, birthdayVi
         Text("Today's Schedule", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
 
         // --- TASK LIST ---
+        // Inside your Dashboard list/card:
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
             items(tasks) { task ->
                 Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(task.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text(task.description, color = Color.Gray, fontSize = 14.sp)
-                        if (task.reminderEnabled) {
+
+                        // FIX: Check if dueDate is not empty instead of reminderEnabled
+                        if (task.dueDate.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("⏰ ${task.reminderTime}", fontSize = 12.sp, color = Color(0xFF6A5ACD))
+                            // Use reminderTime or dueTime based on your Task.kt fields
+                            Text("⏰ ${task.dueDate} at ${task.reminderTime}", fontSize = 12.sp, color = Color(0xFF6A5ACD))
                         }
                     }
                 }

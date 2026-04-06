@@ -1,18 +1,30 @@
 package viewmodel
 
-import androidx.compose.runtime.mutableStateListOf
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
+import androidx.lifecycle.viewModelScope
 import data.Task
+import data.TaskDao
+import kotlinx.coroutines.launch
 
-class TaskViewModel : ViewModel() {
+class TaskViewModel(private val taskDao: TaskDao) : ViewModel() {
 
-    var taskList = mutableStateListOf<Task>()
+    val allTasks: LiveData<List<Task>> = taskDao.getAllTasks().asLiveData()
 
     fun addTask(task: Task) {
-        taskList.add(task)
+        viewModelScope.launch { taskDao.insertTask(task) }
+    }
+
+    fun deleteTask(task: Task) {
+        viewModelScope.launch { taskDao.deleteTask(task) }
+    }
+
+    fun updateTask(task: Task) {
+        viewModelScope.launch { taskDao.updateTask(task) }
     }
 
     fun getTasksByDate(date: String): List<Task> {
-        return taskList.filter { it.dueDate == date }
+        return allTasks.value?.filter { it.dueDate == date } ?: emptyList()
     }
 }

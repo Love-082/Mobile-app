@@ -1,6 +1,9 @@
 package com.example.myapplication
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -27,10 +30,14 @@ import screens.DashboardScreen
 import screens.ProjectDetailScreen
 import screens.ProjectFormScreen
 import screens.ProjectsScreen
+import screens.TaskDetailScreen
+import screens.TaskFormScreen
+import screens.TasksScreen
 import viewmodel.BirthdayViewModel
 import viewmodel.ProjectViewModel
 import viewmodel.TaskViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen(
     taskViewModel: TaskViewModel,
@@ -138,8 +145,52 @@ fun MainScreen(
                 }
             }
 
+            // ... inside MainScreen.kt ...
             2 -> {
-                // Add your TasksScreen logic here using innerPadding
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when {
+                        // FORM SCREEN (Add / Edit)
+                        isAddingTask -> {
+                            TaskFormScreen(
+                                taskId = currentTaskId,
+                                viewModel = taskViewModel,
+                                onBack = {
+                                    isAddingTask = false
+                                    currentTaskId = null
+                                }
+                            )
+                        }
+
+                        // DETAIL SCREEN
+                        currentTaskId != null -> {
+                            TaskDetailScreen(
+                                taskId = currentTaskId!!,
+                                viewModel = taskViewModel,
+                                onEdit = { id ->
+                                    currentTaskId = id
+                                    isAddingTask = true
+                                },
+                                onBack = { currentTaskId = null }
+                            )
+                        }
+
+                        // LIST SCREEN
+                        else -> {
+                            TasksScreen(
+                                viewModel = taskViewModel,
+                                padding = innerPadding,
+                                onAddClick = {
+                                    currentTaskId = null
+                                    isAddingTask = true
+                                },
+                                onTaskClick = { id ->
+                                    currentTaskId = id
+                                    isAddingTask = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
