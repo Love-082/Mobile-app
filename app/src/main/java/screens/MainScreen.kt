@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -15,25 +17,39 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import data.BirthdayDao
+import data.ProjectDao
 import screens.DashboardScreen
+import screens.ProjectDetailScreen
 import screens.ProjectFormScreen
 import screens.ProjectsScreen
-import screens.TaskFormScreen
-import screens.TasksScreen
 import viewmodel.BirthdayViewModel
 import viewmodel.ProjectViewModel
 import viewmodel.TaskViewModel
 
 @Composable
-fun MainScreen(taskViewModel: TaskViewModel, birthdayDao: BirthdayDao) {
-
+fun MainScreen(
+    taskViewModel: TaskViewModel,
+    birthdayDao: BirthdayDao,
+    projectDao: ProjectDao // ADD THIS LINE
+) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Factory to handle the BirthdayDao dependency
+    // Update ProjectViewModel to use the DAO factory
+    val projectViewModel: ProjectViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ProjectViewModel(projectDao) as T
+            }
+        }
+    )
+
+    // Keep your existing BirthdayViewModel factory below this...
     val birthdayViewModel: BirthdayViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -42,8 +58,6 @@ fun MainScreen(taskViewModel: TaskViewModel, birthdayDao: BirthdayDao) {
             }
         }
     )
-
-    val projectViewModel: ProjectViewModel = viewModel()
 
     // Navigation states
     var currentProjectId by remember { mutableStateOf<Int?>(null) }
@@ -74,28 +88,58 @@ fun MainScreen(taskViewModel: TaskViewModel, birthdayDao: BirthdayDao) {
                 )
             }
         }
-    ) { innerPadding ->
+    ) { innerPadding -> // This is the padding provided by Scaffold
         when (selectedTab) {
             0 -> DashboardScreen(
                 viewModel = taskViewModel,
-                padding = innerPadding,
+                padding = innerPadding, // Correctly passed here
                 birthdayViewModel = birthdayViewModel
             )
 
             1 -> {
-                when {
-                    isAddingProject -> ProjectFormScreen(null, projectViewModel, innerPadding) { isAddingProject = false }
-                    currentProjectId != null -> ProjectFormScreen(currentProjectId, projectViewModel, innerPadding) { currentProjectId = null }
-                    else -> ProjectsScreen(projectViewModel, innerPadding, { isAddingProject = true }, { currentProjectId = it })
+                Box(modifier = Modifier.padding(innerPadding)) {
+                    when {
+                        // 1. Check for FORM MODE first
+                        isAddingProject -> {
+                            ProjectFormScreen(
+                                projectId = currentProjectId, // null for 'Add', ID for 'Edit'
+                                viewModel = projectViewModel,
+                                padding = innerPadding,
+                                onBack = { isAddingProject = false }
+                            )
+                        }
+
+                        // 2. Check for DETAIL MODE second
+                        currentProjectId != null -> {
+                            ProjectDetailScreen(
+                                projectId = currentProjectId!!,
+                                viewModel = projectViewModel,
+                                onEdit = { id -> isAddingProject = true },
+                                onBack = { currentProjectId = null }
+                            )
+                        }
+
+                        // 3. Default to the LIST
+                        else -> {
+                            ProjectsScreen(
+                                viewModel = projectViewModel,
+                                padding = innerPadding,
+                                onProjectClick = { id ->
+                                    currentProjectId = id
+                                    isAddingProject = false
+                                },
+                                onAddClick = {
+                                    currentProjectId = null
+                                    isAddingProject = true
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
             2 -> {
-                when {
-                    isAddingTask -> TaskFormScreen(null, taskViewModel, innerPadding) { isAddingTask = false }
-                    currentTaskId != null -> TaskFormScreen(currentTaskId, taskViewModel, innerPadding) { currentTaskId = null }
-                    else -> TasksScreen(taskViewModel, innerPadding, { isAddingTask = true }, { currentTaskId = it })
-                }
+                // Add your TasksScreen logic here using innerPadding
             }
         }
     }

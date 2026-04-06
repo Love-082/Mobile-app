@@ -2,17 +2,43 @@ package viewmodel
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import data.Project
+import data.ProjectDao
+import kotlinx.coroutines.launch
 
-class ProjectViewModel : ViewModel() {
+class ProjectViewModel(private val dao: ProjectDao) : ViewModel() {
 
-    var projectList = mutableStateListOf<Project>()
+    private val _projectList = mutableStateListOf<Project>()
+    val projectList: List<Project> get() = _projectList
+
+    init {
+        loadProjects()
+    }
+
+    fun loadProjects() {
+        viewModelScope.launch {
+            val list = dao.getAllProjects()
+            _projectList.clear()
+            _projectList.addAll(list)
+        }
+    }
 
     fun addProject(project: Project) {
-        projectList.add(project)
+        viewModelScope.launch {
+            dao.insertProject(project)
+            loadProjects() // Refresh list from DB
+        }
+    }
+
+    fun deleteProject(project: Project) {
+        viewModelScope.launch {
+            dao.deleteProject(project)
+            loadProjects()
+        }
     }
 
     fun getProjectById(id: Int): Project? {
-        return projectList.find { it.id == id }
+        return _projectList.find { it.id == id }
     }
 }

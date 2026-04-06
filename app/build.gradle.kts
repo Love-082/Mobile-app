@@ -48,6 +48,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
+    implementation("com.google.code.gson:gson:2.10.1")
     // Room (Database)
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
