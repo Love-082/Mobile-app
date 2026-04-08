@@ -84,8 +84,8 @@ fun MainScreen(
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.DateRange, contentDescription = "Projects") },
-                    label = { Text("Projects") }
+                    icon = { Icon(Icons.Default.DateRange, contentDescription = "Assignments") },
+                    label = { Text("Assignments") }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 2,

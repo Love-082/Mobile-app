@@ -3,6 +3,7 @@ package screens
 import android.Manifest
 import android.app.DatePickerDialog
 import android.content.pm.PackageManager
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,12 +36,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
+import com.example.myapplication.R
 import com.google.android.gms.location.LocationServices
 import network.HolidayResponse
 import network.RetrofitInstance
@@ -148,9 +153,18 @@ fun DashboardScreen(viewModel: TaskViewModel, padding: PaddingValues, birthdayVi
                 .fillMaxWidth()
                 .background(Color(0xFF6A5ACD))
                 .statusBarsPadding()
-                .padding(16.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)
         ) {
-            Text("My Planner", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.bcit_planner),
+                    contentDescription = "My Planner logo",
+                    modifier = Modifier.height(126.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(
@@ -159,20 +173,39 @@ fun DashboardScreen(viewModel: TaskViewModel, padding: PaddingValues, birthdayVi
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Date Picker Card
-                Card(modifier = Modifier.clickable {
-                    val cal = Calendar.getInstance()
-                    DatePickerDialog(context, { _, y, m, d ->
-                        val newCal = Calendar.getInstance().apply { set(y, m, d) }
-                        selectedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(newCal.time)
-                    }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
-                }) {
+                Card(
+                    modifier = Modifier.clickable {
+                        val cal = Calendar.getInstance()
+                        DatePickerDialog(context, { _, y, m, d ->
+                            val newCal = Calendar.getInstance().apply { set(y, m, d) }
+                            selectedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(newCal.time)
+                        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                    },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF6A5ACD)
+                    )
+                ) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column {
-                            Text(dayName, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Text(selectedDate, fontSize = 14.sp)
+                            Text(
+                                dayName,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                            Text(
+                                selectedDate,
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White
+                        )
                     }
                 }
 
@@ -194,16 +227,33 @@ fun DashboardScreen(viewModel: TaskViewModel, padding: PaddingValues, birthdayVi
         }
 
         // --- SPECIAL EVENT SECTION ---
-        Card(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            val displayMessage = when {
-                todayBirthday != null -> "🎂 It's ${todayBirthday.name}'s Birthday!"
-                holidayText != "No holiday today" -> "🎉 $holidayText"
-                else -> "✨ You have ${tasks.size} tasks for today"
-            }
-            Text(displayMessage, modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Medium)
+        val hasHoliday = holidayText.isNotBlank() &&
+                holidayText != "No holiday today" &&
+                holidayText != "Checking holidays..." &&
+                holidayText != "Holiday service unavailable"
+
+        val specialMessage = when {
+            todayBirthday != null -> "🎂 It's ${todayBirthday.name}'s Birthday!"
+            hasHoliday -> "🎉 $holidayText"
+            else -> null
         }
 
-        Text("Today's Schedule", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
+        if (specialMessage != null) {
+            Card(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(specialMessage, modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Medium)
+            }
+        }
+
+        Text(
+            "Personal Tasks",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = if (specialMessage == null) 16.dp else 0.dp
+            )
+        )
 
         // --- TASK LIST ---
         // Inside your Dashboard list/card:
@@ -214,11 +264,15 @@ fun DashboardScreen(viewModel: TaskViewModel, padding: PaddingValues, birthdayVi
                         Text(task.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text(task.description, color = Color.Gray, fontSize = 14.sp)
 
-                        // FIX: Check if dueDate is not empty instead of reminderEnabled
                         if (task.dueDate.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            // Use reminderTime or dueTime based on your Task.kt fields
-                            Text("⏰ ${task.dueDate} at ${task.reminderTime}", fontSize = 12.sp, color = Color(0xFF6A5ACD))
+                            val displayTime = task.dueTime.ifBlank { task.reminderTime }
+                            val scheduleText = if (displayTime.isBlank()) {
+                                "⏰ ${task.dueDate}"
+                            } else {
+                                "⏰ ${task.dueDate} at $displayTime"
+                            }
+                            Text(scheduleText, fontSize = 12.sp, color = Color(0xFF6A5ACD))
                         }
                     }
                 }

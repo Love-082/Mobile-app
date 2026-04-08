@@ -1,5 +1,7 @@
 package screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +26,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -38,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -52,7 +57,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import data.Project
 import data.ProjectTask
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import viewmodel.ProjectViewModel
+
+private const val PROJECT_DUE_DATE_PATTERN = "dd MMM yyyy"
+
+private fun formatProjectDueDate(millis: Long): String {
+    val formatter = SimpleDateFormat(PROJECT_DUE_DATE_PATTERN, Locale.getDefault())
+    formatter.timeZone = TimeZone.getTimeZone("UTC")
+    return formatter.format(Date(millis))
+}
+
+private fun parseProjectDueDateToMillis(date: String): Long? {
+    if (date.isBlank()) return null
+
+    return runCatching {
+        val formatter = SimpleDateFormat(PROJECT_DUE_DATE_PATTERN, Locale.getDefault())
+        formatter.timeZone = TimeZone.getTimeZone("UTC")
+        formatter.parse(date)?.time
+    }.getOrNull()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,18 +90,22 @@ fun ProjectFormScreen(
     onBack: () -> Unit
 ) {
     val isAddMode = projectId == null
-    val existingProject = remember(projectId) {
+    val existingProject = remember(projectId, viewModel.projectList) {
         projectId?.let { viewModel.getProjectById(it) }
     }
 
-    // Form States
     var name by remember { mutableStateOf(existingProject?.name ?: "") }
     var description by remember { mutableStateOf(existingProject?.description ?: "") }
     var dueDate by remember { mutableStateOf(existingProject?.dueDate ?: "") }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     val people = remember {
         mutableStateListOf<String>().apply {
-            addAll(existingProject?.people ?: listOf())
+            if (isAddMode) {
+                add("me")
+            } else {
+                addAll(existingProject?.people ?: listOf())
+            }
         }
     }
     val tasks = remember {
@@ -88,7 +119,7 @@ fun ProjectFormScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (isAddMode) "Create New Project" else "Edit Project",
+                        if (isAddMode) "Create New Assignment" else "Edit Assignment",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -114,7 +145,6 @@ fun ProjectFormScreen(
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // --- Section 1: Basic Details Card ---
             item {
                 Text("General Info", fontWeight = FontWeight.Bold, color = Color(0xFF6A5ACD))
                 ElevatedCard(
@@ -125,29 +155,51 @@ fun ProjectFormScreen(
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Project Title") },
+                            label = { Text("Title") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
                         OutlinedTextField(
                             value = description,
                             onValueChange = { description = it },
-                            label = { Text("Project Description") },
+                            label = { Text("Description") },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 3
                         )
-                        OutlinedTextField(
-                            value = dueDate,
-                            onValueChange = { dueDate = it },
-                            label = { Text("Due Date (e.g., Dec 25, 2026)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) }
-                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = dueDate,
+                                onValueChange = { },
+                                label = { Text("Due Date") },
+                                placeholder = { Text("Select due date") },
+                                modifier = Modifier.fillMaxSize(),
+                                readOnly = true,
+                                leadingIcon = {
+                                    Icon(Icons.Default.DateRange, contentDescription = "Open calendar")
+                                },
+                                singleLine = true
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        showDatePicker = true
+                                    }
+                            )
+                        }
                     }
                 }
             }
 
-            // --- Section 2: Team Members ---
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text("Team Members", fontWeight = FontWeight.Bold, color = Color(0xFF6A5ACD), modifier = Modifier.weight(1f))
@@ -174,7 +226,6 @@ fun ProjectFormScreen(
                 }
             }
 
-            // --- Section 3: Tasks ---
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text("Tasks Checklist", fontWeight = FontWeight.Bold, color = Color(0xFF6A5ACD), modifier = Modifier.weight(1f))
@@ -191,8 +242,6 @@ fun ProjectFormScreen(
                     colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                        // Checkbox row for task status
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
                                 checked = task.isDone,
@@ -210,7 +259,6 @@ fun ProjectFormScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        // Dropdown for Assignment
                         var expanded by remember { mutableStateOf(false) }
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
@@ -251,41 +299,94 @@ fun ProjectFormScreen(
                 }
             }
 
-            // --- Section 4: Actions ---
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = {
+                        val normalizedPeople = people.filter { it.isNotBlank() }.toMutableList()
+                        val normalizedTasks = tasks.toMutableList()
+                        val keepCompleted = existingProject?.isCompleted == true && normalizedTasks.all { it.isDone }
+
                         val finalProject = if (isAddMode) {
-                            Project(name = name, description = description, dueDate = dueDate, people = people.toMutableList(), tasks = tasks.toMutableList())
+                            Project(
+                                name = name,
+                                description = description,
+                                dueDate = dueDate,
+                                people = normalizedPeople,
+                                tasks = normalizedTasks,
+                                isCompleted = false
+                            )
                         } else {
-                            existingProject?.apply {
-                                this.name = name
-                                this.description = description
-                                this.dueDate = dueDate
-                                this.people = people.toMutableList()
-                                this.tasks = tasks.toMutableList()
-                            }!!
-                        }
-                        viewModel.addProject(finalProject)
+                            existingProject?.copy(
+                                name = name,
+                                description = description,
+                                dueDate = dueDate,
+                                people = normalizedPeople,
+                                tasks = normalizedTasks,
+                                isCompleted = keepCompleted
+                            )
+                        } ?: Project(
+                            name = name,
+                            description = description,
+                            dueDate = dueDate,
+                            people = normalizedPeople,
+                            tasks = normalizedTasks,
+                            isCompleted = false
+                        )
+
+                        viewModel.updateProject(finalProject)
                         onBack()
                     },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A5ACD)),
                     shape = MaterialTheme.shapes.medium
                 ) {
-                    Text(if (isAddMode) "Create Project" else "Update Project", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(if (isAddMode) "Create Assignment" else "Update Assignment", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
                     onClick = onBack,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(56.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .height(56.dp),
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Text("Cancel", color = Color.Gray)
                 }
                 Spacer(modifier = Modifier.height(100.dp))
             }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = parseProjectDueDateToMillis(dueDate)
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { selectedMillis ->
+                            dueDate = formatProjectDueDate(selectedMillis)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("CANCEL")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

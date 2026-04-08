@@ -27,7 +27,14 @@ class ProjectViewModel(private val dao: ProjectDao) : ViewModel() {
     fun addProject(project: Project) {
         viewModelScope.launch {
             dao.insertProject(project)
-            loadProjects() // Refresh list from DB
+            loadProjects()
+        }
+    }
+
+    fun updateProject(project: Project) {
+        viewModelScope.launch {
+            dao.insertProject(project)
+            loadProjects()
         }
     }
 
@@ -40,5 +47,9 @@ class ProjectViewModel(private val dao: ProjectDao) : ViewModel() {
 
     fun getProjectById(id: Int): Project? {
         return _projectList.find { it.id == id }
+    }
+
+    fun areAllTasksCompleted(project: Project): Boolean {
+        return project.tasks.all { it.isDone }
     }
 }

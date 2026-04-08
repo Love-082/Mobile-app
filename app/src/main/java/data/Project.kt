@@ -13,5 +13,6 @@ data class Project(
     @TypeConverters(ProjectConverters::class)
     var people: MutableList<String>,
     @TypeConverters(ProjectConverters::class)
-    var tasks: MutableList<ProjectTask>
+    var tasks: MutableList<ProjectTask>,
+    var isCompleted: Boolean = false
 )
